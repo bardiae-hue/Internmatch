@@ -24,7 +24,7 @@ async function call(prompt) {
 function parseJSON(raw) {
   const cleaned = raw.replace(/```json\n?|```\n?/g, '').trim();
   // Find the first [ or { and last ] or }
-  const start = cleaned.search(/[\[{]/);
+  const start = cleaned.search(/[{[]/);
   const lastBracket = cleaned.lastIndexOf(']');
   const lastBrace = cleaned.lastIndexOf('}');
   const end = Math.max(lastBracket, lastBrace);
