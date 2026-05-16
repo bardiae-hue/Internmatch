@@ -1,6 +1,6 @@
 // gemini.js — Gemini 1.5 Flash API
 const API_KEY = 'AIzaSyCQXxSMOOk-S4NokYOnbsTXA4kCi5wgRGw';
-const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 async function call(prompt) {
   const res = await fetch(`${BASE_URL}?key=${API_KEY}`, {
