@@ -259,7 +259,7 @@ export default function ResultsPage({ apiKey, resumeText, onReset }) {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [apiKey, resumeText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleResumeReview() {
     if (review) { setShowReview(true); return; }

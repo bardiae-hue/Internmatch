@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ArrowRight, ArrowLeft, Key, Upload, Eye, EyeOff, Zap, FileText } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Key, Upload, Eye, EyeOff, FileText } from 'lucide-react';
 import { validateKey } from './gemini';
 
 export default function SetupPage({ onComplete, onBack }) {
