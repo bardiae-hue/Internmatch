@@ -1,120 +1,110 @@
-// gemini.js — Free Gemini 1.5 Flash API integration
-// Get your free key at: https://aistudio.google.com/app/apikey
+// gemini.js — Gemini 1.5 Flash API
+const API_KEY = 'AIzaSyCQXxSMOOk-S4NokYOnbsTXA4kCi5wgRGw';
+const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-
-export async function callGemini(apiKey, prompt) {
-  const res = await fetch(`${GEMINI_API_BASE}?key=${apiKey}`, {
+async function call(prompt) {
+  const res = await fetch(`${BASE_URL}?key=${API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4096,
-      },
+      generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
     }),
   });
-
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    const msg = err?.error?.message || `API error ${res.status}`;
-    throw new Error(msg);
+    throw new Error(err?.error?.message || `API error ${res.status}`);
   }
-
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Empty response from Gemini');
   return text;
 }
 
-export async function validateKey(apiKey) {
-  // Cheap validation call
-  await callGemini(apiKey, 'Reply with only the word: valid');
+function parseJSON(raw) {
+  const cleaned = raw.replace(/```json\n?|```\n?/g, '').trim();
+  // Find the first [ or { and last ] or }
+  const start = cleaned.search(/[\[{]/);
+  const lastBracket = cleaned.lastIndexOf(']');
+  const lastBrace = cleaned.lastIndexOf('}');
+  const end = Math.max(lastBracket, lastBrace);
+  if (start === -1 || end === -1) throw new Error('No JSON found in response');
+  return JSON.parse(cleaned.slice(start, end + 1));
 }
 
-export async function matchInternships(apiKey, resumeText) {
-  const prompt = `You are an expert tech career advisor specializing in internship placement.
-
-Analyze this resume and return EXACTLY 6 internship matches as a JSON array. No markdown, no explanation — only raw JSON.
+export async function matchInternships(resumeText) {
+  const prompt = `You are an expert tech career advisor. Analyze this resume and return EXACTLY 6 internship matches.
 
 Resume:
 """
 ${resumeText}
 """
 
-Return this exact structure:
+Return ONLY a raw JSON array (no markdown, no explanation):
 [
   {
-    "company": "Company name",
-    "role": "Exact role title",
-    "matchScore": 87,
-    "matchReasons": ["reason 1", "reason 2", "reason 3"],
-    "gaps": ["gap 1"],
-    "level": "Intern",
-    "location": "City, State or Remote",
-    "applyUrl": "https://careers.company.com",
-    "tags": ["Python", "ML", "Remote"]
+    "company": "Company Name",
+    "role": "Exact Role Title",
+    "matchScore": 85,
+    "location": "City, ST or Remote",
+    "applyUrl": "https://careers.company.com/jobs",
+    "matchReasons": ["Specific reason 1 based on resume", "Specific reason 2"],
+    "gaps": ["One honest gap"],
+    "tags": ["Skill1", "Skill2", "Skill3"]
   }
 ]
 
 Rules:
-- matchScore is 0-100 (be honest, not generous)
-- matchReasons: 2-3 specific reasons based on the resume
-- gaps: 1-2 honest skill gaps for this role
-- Pick realistic companies that would actually hire this profile
-- Vary the match scores realistically (60-95 range)
-- tags: 3-4 relevant skill/trait tags
-- Return ONLY the JSON array, nothing else`;
+- matchScore 55–95, be honest not generous, vary them realistically
+- Pick real companies whose tech stack matches the resume skills
+- applyUrl must be a real careers page URL for that company
+- matchReasons must reference actual skills/projects from the resume
+- tags: 3 relevant skills from the resume
+- Return ONLY the JSON array`;
 
-  const raw = await callGemini(apiKey, prompt);
-  const cleaned = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(cleaned);
+  const raw = await call(prompt);
+  return parseJSON(raw);
 }
 
-export async function generateCoverLetter(apiKey, resumeText, job) {
-  const prompt = `Write a concise, compelling cover letter (3 paragraphs, ~200 words) for:
+export async function generateCoverLetter(resumeText, job) {
+  const prompt = `Write a cover letter for this internship application.
 
 Company: ${job.company}
 Role: ${job.role}
+Resume excerpt:
+${resumeText.slice(0, 2000)}
 
-Resume summary:
-${resumeText.slice(0, 1500)}
+Write 3 tight paragraphs (~180 words total). Rules:
+- Open with a hook, not "I am writing to express"
+- Reference 2 specific skills/projects from the resume
+- Sound like a confident student, not a template
+- End with one clear sentence requesting an interview
+- Return only the letter text, no subject line, no date`;
 
-Rules:
-- Sound human, not AI-generated
-- Reference specific skills from the resume that match this role
-- Be direct and confident, not sycophantic
-- No "I am writing to express my interest" openers
-- End with a clear call to action
-- Return only the cover letter text, no subject line`;
-
-  return callGemini(apiKey, prompt);
+  return call(prompt);
 }
 
-export async function reviewResume(apiKey, resumeText) {
-  const prompt = `You are a brutal, honest tech recruiter reviewing this resume for internship applications.
+export async function reviewResume(resumeText) {
+  const prompt = `You are a senior tech recruiter. Review this resume for internship applications.
 
 Resume:
 """
 ${resumeText}
 """
 
-Return a JSON object with this exact structure (no markdown, raw JSON only):
+Return ONLY a raw JSON object:
 {
-  "overallScore": 72,
-  "verdict": "One sentence honest verdict",
+  "overallScore": 74,
+  "verdict": "One honest sentence summary",
   "strengths": ["strength 1", "strength 2", "strength 3"],
   "fixes": [
-    { "priority": "high", "issue": "Problem description", "fix": "Exact fix to make" },
-    { "priority": "medium", "issue": "Problem description", "fix": "Exact fix to make" }
+    { "priority": "high", "issue": "The problem", "fix": "Exactly what to change" },
+    { "priority": "medium", "issue": "The problem", "fix": "Exactly what to change" },
+    { "priority": "low", "issue": "The problem", "fix": "Exactly what to change" }
   ],
   "missingSkills": ["skill 1", "skill 2", "skill 3"]
-}
+}`;
 
-Be brutally honest. Return ONLY the JSON object.`;
-
-  const raw = await callGemini(apiKey, prompt);
-  const cleaned = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(cleaned);
+  const raw = await call(prompt);
+  return parseJSON(raw);
 }

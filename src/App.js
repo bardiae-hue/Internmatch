@@ -1,40 +1,25 @@
 import React, { useState } from 'react';
 import LandingPage  from './LandingPage';
-import SetupPage    from './SetupPage';
 import ResultsPage  from './ResultsPage';
 
 export default function App() {
-  const [screen, setScreen] = useState('landing'); // 'landing' | 'setup' | 'results'
-  const [session, setSession] = useState(null);    // { apiKey, resumeText }
+  const [screen, setScreen]       = useState('landing');
+  const [resumeText, setResumeText] = useState('');
 
-  function handleGetStarted() { setScreen('setup'); }
-  function handleBack()        { setScreen('landing'); }
-
-  function handleSetupComplete({ apiKey, resumeText }) {
-    setSession({ apiKey, resumeText });
+  function handleStart(text) {
+    setResumeText(text);
     setScreen('results');
   }
 
   function handleReset() {
-    setSession(null);
-    setScreen('setup');
+    setResumeText('');
+    setScreen('landing');
   }
 
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }}>
-      {screen === 'landing' && (
-        <LandingPage onGetStarted={handleGetStarted} />
-      )}
-      {screen === 'setup' && (
-        <SetupPage onComplete={handleSetupComplete} onBack={handleBack} />
-      )}
-      {screen === 'results' && session && (
-        <ResultsPage
-          apiKey={session.apiKey}
-          resumeText={session.resumeText}
-          onReset={handleReset}
-        />
-      )}
+      {screen === 'landing' && <LandingPage onStart={handleStart} />}
+      {screen === 'results' && <ResultsPage resumeText={resumeText} onReset={handleReset} />}
     </div>
   );
 }

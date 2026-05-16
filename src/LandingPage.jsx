@@ -1,213 +1,195 @@
-import React from 'react';
-import { ArrowRight, Zap } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ArrowRight, Upload } from 'lucide-react';
 
-const COMPANIES = ['Google','Stripe','Airbnb','Meta','Figma','Notion','Vercel','Linear','Anthropic','Shopify'];
+export default function LandingPage({ onStart }) {
+  const [resumeText, setResumeText] = useState('');
+  const [fileName, setFileName]     = useState('');
+  const [dragOver, setDragOver]     = useState(false);
+  const [error, setError]           = useState('');
+  const fileRef = useRef();
 
-const STATS = [
-  { n: '94%',   label: 'match accuracy' },
-  { n: '6',     label: 'roles per search' },
-  { n: '< 30s', label: 'to results' },
-  { n: 'Free',  label: 'Gemini API' },
-];
+  function readFile(file) {
+    if (!file) return;
+    setError('');
+    setFileName(file.name);
 
-const HOW = [
-  { icon: '01', title: 'Enter your free API key', body: 'Grab a free Gemini key from Google AI Studio — takes 2 minutes, no credit card.' },
-  { icon: '02', title: 'Upload your resume',       body: 'PDF, DOCX, or TXT. We read every line — projects, skills, coursework, everything.' },
-  { icon: '03', title: 'Get matched instantly',    body: '6 ranked internships with match scores, honest fit analysis, and apply links.' },
-];
+    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+      const reader = new FileReader();
+      reader.onload = e => setResumeText(e.target.result);
+      reader.readAsText(file);
+      return;
+    }
 
-const FEATURES = [
-  { icon: '🎯', title: 'Match scoring',     body: 'Every role gets a % match with an honest explanation of why you fit — and where you fall short.' },
-  { icon: '✉️', title: 'Cover letter AI',   body: 'One click generates a personalized cover letter for any matched role. Not generic — specific to your resume.' },
-  { icon: '📋', title: 'Resume review',     body: 'Get a brutal, honest critique of your resume with exact fixes to make before you apply.' },
-  { icon: '💡', title: 'Interview tips',    body: 'Company-specific prep advice for each role — what they look for, how to answer, what to study.' },
-  { icon: '🔍', title: 'Skill gap analysis',body: 'See exactly which skills to add to unlock better matches. Prioritized by market demand.' },
-  { icon: '🔒', title: 'Private by design', body: 'Your resume never leaves your browser. Your API key is only in your session — never stored.' },
-];
+    if (file.name.endsWith('.pdf')) {
+      const reader = new FileReader();
+      reader.onload = async e => {
+        const bytes = new Uint8Array(e.target.result);
+        const str = new TextDecoder('latin1').decode(bytes);
+        const blocks = str.match(/BT[\s\S]*?ET/g) || [];
+        let text = '';
+        blocks.forEach(b => {
+          const parts = b.match(/\(([^)]+)\)/g) || [];
+          parts.forEach(p => { text += p.replace(/[()]/g, '') + ' '; });
+        });
+        if (text.trim().length > 80) {
+          setResumeText(text.trim());
+        } else {
+          setResumeText('');
+          setError('Could not extract text from this PDF. Please paste your resume text below.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      return;
+    }
 
-export default function LandingPage({ onGetStarted }) {
+    setError('Please upload a .txt or .pdf file, or paste your resume text below.');
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setDragOver(false);
+    readFile(e.dataTransfer.files[0]);
+  }
+
+  function handleSubmit() {
+    if (resumeText.trim().length < 80) {
+      setError('Please add more content — we need your full resume for accurate matches.');
+      return;
+    }
+    onStart(resumeText.trim());
+  }
+
+  const ready = resumeText.trim().length >= 80;
+
   return (
-    <div style={{ flex: 1 }}>
+    <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
 
       {/* NAV */}
       <nav style={{
+        padding:'1.25rem 2rem',
+        borderBottom:'1px solid var(--border)',
         display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'1rem 2rem', borderBottom:'1px solid var(--border-subtle)',
-        position:'sticky', top:0,
-        background:'rgba(13,13,20,0.85)', backdropFilter:'blur(12px)', zIndex:100,
       }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div style={{
-            width:28, height:28, borderRadius:8, background:'var(--purple)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-          }}>
-            <Zap size={14} fill="#fff" color="#fff" />
-          </div>
-          <span style={{ fontWeight:700, fontSize:15, letterSpacing:'-0.03em' }}>InternMatch</span>
-        </div>
-        <button className="btn-primary" onClick={onGetStarted} style={{ padding:'8px 16px', fontSize:13 }}>
-          Try free <ArrowRight size={13} />
-        </button>
+        <span style={{ fontFamily:'var(--display)', fontSize:18, fontWeight:500, letterSpacing:'-0.02em' }}>
+          InternMatch
+        </span>
+        <span style={{ fontSize:12, color:'var(--text-3)' }}>AI-powered internship matching</span>
       </nav>
 
-      {/* HERO */}
-      <section style={{ padding:'6rem 2rem 4rem', textAlign:'center', position:'relative', overflow:'hidden' }}>
-        <div style={{
-          position:'absolute', top:'10%', left:'50%', transform:'translateX(-50%)',
-          width:700, height:350,
-          background:'radial-gradient(ellipse, rgba(120,100,255,0.13) 0%, transparent 70%)',
-          pointerEvents:'none',
-        }} />
+      {/* MAIN */}
+      <main style={{
+        flex:1, display:'flex', flexDirection:'column', alignItems:'center',
+        justifyContent:'center', padding:'3rem 1.5rem',
+      }}>
+        <div style={{ width:'100%', maxWidth:560 }}>
 
-        <div className="fade-up" style={{ position:'relative', maxWidth:700, margin:'0 auto' }}>
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:'1.5rem' }}>
-            <span style={{
-              display:'inline-flex', alignItems:'center', gap:6,
-              padding:'4px 12px', borderRadius:99,
-              background:'rgba(34,197,94,0.1)', border:'1px solid rgba(34,197,94,0.2)',
-              color:'#4ade80', fontSize:12, fontWeight:600,
+          {/* Headline */}
+          <div className="fade-up" style={{ marginBottom:'2.5rem' }}>
+            <h1 style={{
+              fontFamily:'var(--display)',
+              fontSize:'clamp(36px, 5vw, 52px)',
+              fontWeight:500, lineHeight:1.12,
+              letterSpacing:'-0.03em',
+              marginBottom:'1rem',
             }}>
-              ✦ Free with Google Gemini API
-            </span>
-          </div>
-
-          <h1 style={{
-            fontSize:'clamp(38px,6vw,68px)', fontWeight:700, lineHeight:1.08,
-            letterSpacing:'-0.04em', marginBottom:'1.5rem',
-          }}>
-            Find your dream<br />
-            <span style={{
-              background:'linear-gradient(135deg, #7864ff 0%, #a394ff 50%, #c9b8ff 100%)',
-              WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
-            }}>
-              tech internship
-            </span>
-            <br />in 30 seconds.
-          </h1>
-
-          <p style={{
-            fontSize:18, color:'var(--text-secondary)', lineHeight:1.75, marginBottom:'2.5rem',
-            maxWidth:460, margin:'0 auto 2.5rem',
-          }}>
-            Upload your resume. AI reads every line and matches you to real internships at companies that actually want your skills.
-          </p>
-
-          <div style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap', marginBottom:'3rem' }}>
-            <button className="btn-primary" onClick={onGetStarted} style={{ padding:'14px 28px', fontSize:16 }}>
-              Upload resume — it's free <ArrowRight size={16} />
-            </button>
-          </div>
-
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center', maxWidth:500, margin:'0 auto' }}>
-            {COMPANIES.map(c => (
-              <span key={c} style={{
-                fontSize:12, color:'var(--text-muted)', padding:'3px 10px',
-                borderRadius:99, border:'1px solid var(--border-subtle)',
-                background:'var(--bg-surface)',
-              }}>{c}</span>
-            ))}
-          </div>
-          <p style={{ fontSize:12, color:'var(--text-muted)', marginTop:10 }}>
-            Matches roles at 1000s of real companies
-          </p>
-        </div>
-      </section>
-
-      {/* STATS */}
-      <section style={{ padding:'0 2rem 4rem', maxWidth:820, margin:'0 auto' }}>
-        <div style={{
-          display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1,
-          background:'var(--border-subtle)', border:'1px solid var(--border-subtle)',
-          borderRadius:'var(--r-lg)', overflow:'hidden',
-        }}>
-          {STATS.map(s => (
-            <div key={s.label} style={{ padding:'1.5rem 1rem', textAlign:'center', background:'var(--bg-surface)' }}>
-              <div style={{ fontSize:28, fontWeight:700, letterSpacing:'-0.03em', color:'var(--text-primary)', marginBottom:4 }}>{s.n}</div>
-              <div style={{ fontSize:12, color:'var(--text-muted)' }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section style={{ padding:'2rem 2rem 4rem', maxWidth:820, margin:'0 auto' }}>
-        <div style={{ textAlign:'center', marginBottom:'3rem' }}>
-          <div style={{ fontSize:11, fontWeight:600, color:'var(--purple)', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:12 }}>How it works</div>
-          <h2 style={{ fontSize:32, fontWeight:700, letterSpacing:'-0.03em' }}>Three steps to matched</h2>
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
-          {HOW.map(step => (
-            <div key={step.icon} className="card" style={{ padding:'1.5rem' }}>
-              <div style={{ fontFamily:'var(--mono)', fontSize:11, color:'var(--purple)', fontWeight:500, marginBottom:12 }}>{step.icon}</div>
-              <div style={{ fontSize:15, fontWeight:600, marginBottom:8, letterSpacing:'-0.02em' }}>{step.title}</div>
-              <div style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.65 }}>{step.body}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section style={{ padding:'0 2rem 5rem', maxWidth:820, margin:'0 auto' }}>
-        <div style={{ textAlign:'center', marginBottom:'3rem' }}>
-          <div style={{ fontSize:11, fontWeight:600, color:'var(--purple)', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:12 }}>Features</div>
-          <h2 style={{ fontSize:32, fontWeight:700, letterSpacing:'-0.03em' }}>Everything you need</h2>
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          {FEATURES.map(f => (
-            <div key={f.title} className="card" style={{ padding:'1.25rem', display:'flex', gap:12, alignItems:'flex-start' }}>
-              <div style={{ fontSize:20, flexShrink:0, marginTop:2 }}>{f.icon}</div>
-              <div>
-                <div style={{ fontSize:14, fontWeight:600, marginBottom:5, letterSpacing:'-0.02em' }}>{f.title}</div>
-                <div style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.6 }}>{f.body}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section style={{ padding:'2rem 2rem 6rem', textAlign:'center' }}>
-        <div style={{
-          maxWidth:480, margin:'0 auto',
-          background:'var(--bg-surface)', border:'1px solid var(--border-default)',
-          borderRadius:'var(--r-xl)', padding:'3rem 2rem',
-          position:'relative', overflow:'hidden',
-        }}>
-          <div style={{
-            position:'absolute', inset:0,
-            background:'radial-gradient(ellipse at 50% 0%, rgba(120,100,255,0.1) 0%, transparent 60%)',
-            pointerEvents:'none',
-          }} />
-          <div style={{ position:'relative' }}>
-            <div style={{ fontSize:28, marginBottom:16 }}>🚀</div>
-            <h2 style={{ fontSize:28, fontWeight:700, letterSpacing:'-0.03em', marginBottom:12 }}>
-              Ready to find your internship?
-            </h2>
-            <p style={{ fontSize:14, color:'var(--text-secondary)', lineHeight:1.7, marginBottom:'2rem' }}>
-              You need a free Google Gemini API key. Get one at{' '}
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer"
-                style={{ color:'var(--purple-light)', textDecoration:'none' }}>
-                aistudio.google.com
-              </a>{' '}— takes 2 minutes, no credit card required.
+              Find internships<br />
+              <em style={{ fontStyle:'italic', fontWeight:300 }}>built for your resume.</em>
+            </h1>
+            <p style={{ fontSize:15, color:'var(--text-2)', lineHeight:1.7, maxWidth:440 }}>
+              Upload your resume and get matched to real tech internships in seconds — no account, no noise.
             </p>
-            <button className="btn-primary" onClick={onGetStarted} style={{ padding:'14px 28px', fontSize:15 }}>
-              Get started now <ArrowRight size={15} />
+          </div>
+
+          {/* Upload card */}
+          <div className="fade-up fade-up-2 card" style={{ padding:'1.75rem', marginBottom: error ? '0.75rem' : '1rem' }}>
+
+            {/* Drop zone */}
+            <div
+              onClick={() => fileRef.current.click()}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              style={{
+                border:`1.5px dashed ${dragOver ? 'var(--text)' : 'var(--border-dark)'}`,
+                borderRadius:10, padding:'1.5rem',
+                textAlign:'center', cursor:'pointer',
+                background: dragOver ? 'var(--bg-subtle)' : 'var(--bg)',
+                transition:'all 0.15s', marginBottom:'1.25rem',
+              }}
+            >
+              <input ref={fileRef} type="file" accept=".pdf,.txt" onChange={e => readFile(e.target.files[0])} style={{ display:'none' }} />
+              <Upload size={18} color={fileName ? 'var(--green)' : 'var(--text-3)'} style={{ marginBottom:8 }} />
+              {fileName ? (
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--green)' }}>{fileName} ✓</div>
+                  <div style={{ fontSize:12, color:'var(--text-3)', marginTop:3 }}>Click to change</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize:13, fontWeight:500, color:'var(--text-2)' }}>Drop your resume here</div>
+                  <div style={{ fontSize:12, color:'var(--text-3)', marginTop:3 }}>PDF or TXT · or paste below</div>
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:'1.25rem' }}>
+              <div style={{ flex:1, height:1, background:'var(--border)' }} />
+              <span style={{ fontSize:11, color:'var(--text-3)', fontFamily:'var(--mono)' }}>or paste text</span>
+              <div style={{ flex:1, height:1, background:'var(--border)' }} />
+            </div>
+
+            {/* Textarea */}
+            <textarea
+              value={resumeText}
+              onChange={e => { setResumeText(e.target.value); setError(''); }}
+              placeholder="Paste your resume here…"
+              rows={8}
+              style={{
+                padding:'12px 14px', fontSize:13, lineHeight:1.65,
+                resize:'vertical', marginBottom:'1.25rem',
+                fontFamily:'var(--mono)', color:'var(--text)',
+              }}
+            />
+
+            {/* Submit */}
+            <button
+              className="btn btn-dark"
+              onClick={handleSubmit}
+              disabled={!ready}
+              style={{ width:'100%', justifyContent:'center', padding:'13px' }}
+            >
+              Find my matches <ArrowRight size={15} />
             </button>
           </div>
+
+          {error && (
+            <div className="fade-up" style={{
+              fontSize:13, color:'var(--red)', padding:'10px 14px',
+              background:'#FEF2F2', border:'1px solid #FECACA',
+              borderRadius:8, marginBottom:'1rem',
+            }}>
+              {error}
+            </div>
+          )}
+
+          {/* Trust line */}
+          <div className="fade-up fade-up-3" style={{ textAlign:'center' }}>
+            <p style={{ fontSize:12, color:'var(--text-3)', lineHeight:1.7 }}>
+              Your resume is never stored or shared — processed in your browser session only.
+            </p>
+          </div>
         </div>
-      </section>
+      </main>
 
       {/* FOOTER */}
       <footer style={{
-        borderTop:'1px solid var(--border-subtle)', padding:'1.5rem 2rem',
+        borderTop:'1px solid var(--border)', padding:'1.25rem 2rem',
         display:'flex', alignItems:'center', justifyContent:'space-between',
-        fontSize:12, color:'var(--text-muted)',
+        fontSize:12, color:'var(--text-3)',
       }}>
-        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-          <Zap size={12} color="var(--purple)" />
-          <span style={{ fontWeight:600 }}>InternMatch</span>
-        </div>
-        <div>Powered by Gemini · Your data stays in your browser</div>
+        <span style={{ fontFamily:'var(--display)', fontWeight:500 }}>InternMatch</span>
+        <span>Powered by Google Gemini</span>
       </footer>
     </div>
   );

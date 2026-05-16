@@ -1,126 +1,139 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ExternalLink, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { ArrowLeft, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { matchInternships, generateCoverLetter, reviewResume } from './gemini';
 
-/* ── Helpers ── */
-function ScoreBadge({ score }) {
-  const color = score >= 80 ? '#4ade80' : score >= 65 ? '#fbbf24' : '#f87171';
+/* ── Score ring ── */
+function ScoreRing({ score }) {
+  const color = score >= 80 ? 'var(--green)' : score >= 65 ? 'var(--amber)' : '#EF4444';
   return (
     <div style={{
-      display:'inline-flex', alignItems:'center', justifyContent:'center',
-      width:52, height:52, borderRadius:'50%',
-      border:`2.5px solid ${color}`,
-      color, fontSize:15, fontWeight:700, letterSpacing:'-0.02em', flexShrink:0,
+      width:48, height:48, borderRadius:'50%', flexShrink:0,
+      border:`2px solid ${color}`,
+      display:'flex', alignItems:'center', justifyContent:'center',
+      color, fontSize:14, fontWeight:700, fontFamily:'var(--mono)',
+      background: score >= 80 ? 'var(--green-bg)' : score >= 65 ? 'var(--amber-bg)' : '#FEF2F2',
     }}>
       {score}
     </div>
   );
 }
 
+/* ── Tag chip ── */
 function Tag({ children }) {
   return (
     <span style={{
-      fontSize:11, fontWeight:500, padding:'2px 8px', borderRadius:99,
-      background:'var(--purple-dim)', color:'var(--purple-light)',
-      border:'1px solid rgba(120,100,255,0.2)',
+      fontSize:11, fontWeight:500, padding:'2px 9px', borderRadius:99,
+      background:'var(--bg-subtle)', color:'var(--text-2)',
+      border:'1px solid var(--border)',
     }}>{children}</span>
   );
 }
 
-/* ── Match Card ── */
-function MatchCard({ job, apiKey, resumeText }) {
-  const [open, setOpen]           = useState(false);
-  const [tab, setTab]             = useState('why');   // 'why' | 'cover' | 'interview'
-  const [coverLetter, setCoverLetter]   = useState('');
-  const [loadingCover, setLoadingCover] = useState(false);
+/* ── Match card ── */
+function MatchCard({ job, resumeText, index }) {
+  const [open, setOpen]         = useState(false);
+  const [tab, setTab]           = useState('fit');
+  const [cover, setCover]       = useState('');
+  const [loadCover, setLoadCover] = useState(false);
 
-  async function handleCoverLetter() {
-    if (coverLetter) { setTab('cover'); return; }
-    setLoadingCover(true);
+  async function getCover() {
+    if (cover) { setTab('cover'); return; }
+    setLoadCover(true);
     try {
-      const text = await generateCoverLetter(apiKey, resumeText, job);
-      setCoverLetter(text);
-      setTab('cover');
+      const text = await generateCoverLetter(resumeText, job);
+      setCover(text);
     } catch (e) {
-      setCoverLetter('Error generating cover letter: ' + e.message);
-      setTab('cover');
+      setCover('Error: ' + e.message);
     } finally {
-      setLoadingCover(false);
+      setLoadCover(false);
+      setTab('cover');
     }
   }
 
   return (
-    <div className="card" style={{ overflow:'hidden', transition:'border-color 0.2s',
-      borderColor: open ? 'var(--border-default)' : 'var(--border-subtle)' }}>
-      {/* Header row */}
-      <div style={{ padding:'1.25rem 1.5rem', display:'flex', alignItems:'center', gap:16, cursor:'pointer' }}
-        onClick={() => setOpen(v => !v)}>
-        <ScoreBadge score={job.matchScore} />
+    <div
+      className={`card fade-up fade-up-${Math.min(index + 1, 6)}`}
+      style={{ overflow:'hidden', transition:'box-shadow 0.2s', cursor:'default' }}
+    >
+      {/* Row */}
+      <div
+        onClick={() => setOpen(v => !v)}
+        style={{
+          padding:'1.125rem 1.375rem',
+          display:'flex', alignItems:'center', gap:14, cursor:'pointer',
+          userSelect:'none',
+        }}
+      >
+        <ScoreRing score={job.matchScore} />
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap', marginBottom:5 }}>
             <span style={{ fontSize:15, fontWeight:700, letterSpacing:'-0.02em' }}>{job.role}</span>
-            <span style={{ fontSize:13, color:'var(--text-muted)' }}>@ {job.company}</span>
+            <span style={{ fontSize:13, color:'var(--text-2)' }}>at {job.company}</span>
           </div>
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:5, flexWrap:'wrap', alignItems:'center' }}>
             {(job.tags || []).map(t => <Tag key={t}>{t}</Tag>)}
-            <span style={{ fontSize:11, color:'var(--text-muted)', padding:'2px 6px' }}>📍 {job.location}</span>
+            <span style={{ fontSize:11, color:'var(--text-3)', marginLeft:2 }}>· {job.location}</span>
           </div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-          <a href={job.applyUrl || '#'} target="_blank" rel="noreferrer"
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+          <a
+            href={job.applyUrl || '#'}
+            target="_blank"
+            rel="noreferrer"
             onClick={e => e.stopPropagation()}
-            style={{
-              display:'inline-flex', alignItems:'center', gap:5,
-              padding:'7px 14px', borderRadius:8,
-              background:'var(--purple)', color:'#fff',
-              fontSize:12, fontWeight:600, textDecoration:'none',
-            }}>
+            className="btn btn-dark"
+            style={{ padding:'8px 14px', fontSize:12, textDecoration:'none' }}
+          >
             Apply <ExternalLink size={11} />
           </a>
-          {open ? <ChevronUp size={15} color="var(--text-muted)" /> : <ChevronDown size={15} color="var(--text-muted)" />}
+          {open
+            ? <ChevronUp size={14} color="var(--text-3)" />
+            : <ChevronDown size={14} color="var(--text-3)" />
+          }
         </div>
       </div>
 
-      {/* Expanded detail */}
+      {/* Expanded */}
       {open && (
-        <div style={{ borderTop:'1px solid var(--border-subtle)', padding:'1.25rem 1.5rem' }}>
-          {/* Tabs */}
-          <div style={{ display:'flex', gap:2, marginBottom:'1.25rem',
-            background:'var(--bg-elevated)', borderRadius:8, padding:3, width:'fit-content' }}>
-            {[['why','Why you fit'], ['cover','Cover letter'], ['interview','Interview tips']].map(([id, label]) => (
-              <button key={id}
-                onClick={() => { setTab(id); if (id === 'cover') handleCoverLetter(); }}
+        <div style={{ borderTop:'1px solid var(--border)', padding:'1.25rem 1.375rem' }}>
+          {/* Tab bar */}
+          <div style={{ display:'flex', gap:2, marginBottom:'1.25rem' }}>
+            {[['fit','Why you fit'], ['cover','Cover letter'], ['tips','Interview tips']].map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => { if (id === 'cover') getCover(); else setTab(id); }}
                 style={{
-                  padding:'6px 14px', borderRadius:6, border:'none', cursor:'pointer',
-                  fontSize:12, fontWeight:600, fontFamily:'inherit',
-                  background: tab === id ? 'var(--purple)' : 'transparent',
-                  color: tab === id ? '#fff' : 'var(--text-muted)',
+                  padding:'6px 13px', border:'none', borderRadius:7, cursor:'pointer',
+                  fontSize:12, fontWeight:600, fontFamily:'var(--sans)',
+                  background: tab === id ? 'var(--text)' : 'transparent',
+                  color: tab === id ? '#fff' : 'var(--text-2)',
                   transition:'all 0.15s',
-                }}>
+                }}
+              >
                 {label}
               </button>
             ))}
           </div>
 
-          {/* Why you fit */}
-          {tab === 'why' && (
-            <div>
-              <div style={{ marginBottom:'1rem' }}>
-                <div style={{ fontSize:12, fontWeight:600, color:'var(--green)', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.06em' }}>✓ Why you fit</div>
+          {/* Fit tab */}
+          {tab === 'fit' && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+              <div>
+                <div style={{ fontSize:11, fontWeight:600, color:'var(--green)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:10 }}>Why you fit</div>
                 {(job.matchReasons || []).map((r, i) => (
-                  <div key={i} style={{ display:'flex', gap:8, marginBottom:6 }}>
-                    <span style={{ color:'var(--green)', flexShrink:0, marginTop:1 }}>+</span>
-                    <span style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.55 }}>{r}</span>
+                  <div key={i} style={{ display:'flex', gap:8, marginBottom:7 }}>
+                    <span style={{ color:'var(--green)', fontSize:13, flexShrink:0, marginTop:1 }}>+</span>
+                    <span style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.6 }}>{r}</span>
                   </div>
                 ))}
               </div>
               {(job.gaps || []).length > 0 && (
                 <div>
-                  <div style={{ fontSize:12, fontWeight:600, color:'var(--amber)', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.06em' }}>⚠ Gaps to address</div>
+                  <div style={{ fontSize:11, fontWeight:600, color:'var(--amber)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:10 }}>Gaps to note</div>
                   {job.gaps.map((g, i) => (
-                    <div key={i} style={{ display:'flex', gap:8, marginBottom:6 }}>
-                      <span style={{ color:'var(--amber)', flexShrink:0, marginTop:1 }}>–</span>
-                      <span style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.55 }}>{g}</span>
+                    <div key={i} style={{ display:'flex', gap:8, marginBottom:7 }}>
+                      <span style={{ color:'var(--amber)', fontSize:13, flexShrink:0, marginTop:1 }}>–</span>
+                      <span style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.6 }}>{g}</span>
                     </div>
                   ))}
                 </div>
@@ -128,48 +141,49 @@ function MatchCard({ job, apiKey, resumeText }) {
             </div>
           )}
 
-          {/* Cover letter */}
+          {/* Cover letter tab */}
           {tab === 'cover' && (
             <div>
-              {loadingCover ? (
-                <div style={{ display:'flex', alignItems:'center', gap:10, color:'var(--text-muted)', fontSize:13, padding:'1rem 0' }}>
-                  <div className="spinner" /> Generating personalized cover letter…
+              {loadCover ? (
+                <div style={{ display:'flex', alignItems:'center', gap:10, color:'var(--text-2)', fontSize:13, padding:'0.5rem 0' }}>
+                  <div className="spinner spinner-dark" /> Writing cover letter…
                 </div>
               ) : (
                 <div>
                   <textarea
-                    value={coverLetter}
-                    onChange={e => setCoverLetter(e.target.value)}
-                    rows={12}
-                    style={{
-                      width:'100%', padding:'12px 14px',
-                      background:'var(--bg-elevated)', border:'1px solid var(--border-default)',
-                      borderRadius:10, color:'var(--text-primary)', fontSize:13,
-                      fontFamily:'inherit', outline:'none', resize:'vertical', lineHeight:1.7,
-                    }}
+                    value={cover}
+                    onChange={e => setCover(e.target.value)}
+                    rows={11}
+                    style={{ padding:'12px 14px', fontSize:13, lineHeight:1.7, resize:'vertical', fontFamily:'var(--sans)', marginBottom:8 }}
                   />
-                  <button onClick={() => navigator.clipboard.writeText(coverLetter)}
-                    style={{ marginTop:8, fontSize:12, color:'var(--purple-light)',
-                      background:'none', border:'none', cursor:'pointer', fontFamily:'inherit' }}>
-                    Copy to clipboard
+                  <button
+                    onClick={() => navigator.clipboard.writeText(cover)}
+                    className="btn btn-outline"
+                    style={{ fontSize:12, padding:'7px 14px' }}
+                  >
+                    Copy text
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Interview tips */}
-          {tab === 'interview' && (
-            <div style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.7 }}>
-              <div style={{ fontWeight:600, color:'var(--text-primary)', marginBottom:10 }}>
-                Preparing for {job.company} — {job.role}
+          {/* Interview tips tab */}
+          {tab === 'tips' && (
+            <div>
+              <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:12 }}>
+                Preparing for {job.company}
               </div>
-              <ul style={{ paddingLeft:'1.2rem', display:'flex', flexDirection:'column', gap:8 }}>
-                <li>Research {job.company}'s recent products, blog posts, and engineering culture before your interview.</li>
-                <li>Expect {job.tags?.slice(0,2).join(' and ')} focused technical questions — review fundamentals and practice on LeetCode.</li>
-                <li>Prepare 2–3 stories using the STAR method about projects from your resume.</li>
-                <li>Have a strong answer to "Tell me about a time you handled ambiguity or failure."</li>
-                <li>Come with 3 thoughtful questions about the team, tech stack, and growth opportunities.</li>
+              <ul style={{ paddingLeft:'1rem', display:'flex', flexDirection:'column', gap:9 }}>
+                {[
+                  `Study ${(job.tags || []).slice(0,2).join(' and ')} concepts — expect technical questions on these.`,
+                  `Research ${job.company}'s recent engineering blog posts and product launches.`,
+                  `Prepare 2–3 project stories using the STAR method — focus on impact and decisions made.`,
+                  `Have a clear, honest answer to "Tell me about a time you failed and what you learned."`,
+                  `Prepare 3 thoughtful questions about the team's tech stack, processes, and mentorship culture.`,
+                ].map((tip, i) => (
+                  <li key={i} style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.6 }}>{tip}</li>
+                ))}
               </ul>
             </div>
           )}
@@ -179,163 +193,215 @@ function MatchCard({ job, apiKey, resumeText }) {
   );
 }
 
-/* ── Resume Review Panel ── */
-function ResumeReview({ review }) {
-  const priorityColor = { high: 'var(--red)', medium: 'var(--amber)', low: 'var(--text-muted)' };
+/* ── Resume review panel ── */
+function ReviewPanel({ resumeText }) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
+  const [open, setOpen]       = useState(false);
+
+  async function load() {
+    if (data) { setOpen(v => !v); return; }
+    setLoading(true);
+    try {
+      const r = await reviewResume(resumeText);
+      setData(r);
+      setOpen(true);
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const priorityColor = { high:'var(--red)', medium:'var(--amber)', low:'var(--text-3)' };
+
   return (
-    <div className="card" style={{ padding:'1.5rem', marginTop:'1.5rem' }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem' }}>
-        <div style={{ fontSize:16, fontWeight:700, letterSpacing:'-0.02em' }}>📋 Resume Review</div>
-        <div style={{ textAlign:'right' }}>
-          <div style={{ fontSize:24, fontWeight:700, letterSpacing:'-0.03em',
-            color: review.overallScore >= 75 ? 'var(--green)' : review.overallScore >= 55 ? 'var(--amber)' : 'var(--red)' }}>
-            {review.overallScore}/100
+    <div className="card" style={{ marginTop:'2rem', overflow:'hidden' }}>
+      <button
+        onClick={load}
+        disabled={loading}
+        style={{
+          width:'100%', padding:'1.125rem 1.375rem',
+          display:'flex', alignItems:'center', justifyContent:'space-between',
+          background:'none', border:'none', cursor:'pointer', fontFamily:'var(--sans)',
+        }}
+      >
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {loading
+            ? <><div className="spinner spinner-dark" /><span style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>Analyzing resume…</span></>
+            : <span style={{ fontSize:14, fontWeight:600, color:'var(--text)' }}>Resume review & feedback</span>
+          }
+        </div>
+        {!loading && (
+          data && open
+            ? <ChevronUp size={14} color="var(--text-3)" />
+            : <ChevronDown size={14} color="var(--text-3)" />
+        )}
+      </button>
+
+      {error && (
+        <div style={{ padding:'0 1.375rem 1rem', fontSize:13, color:'var(--red)' }}>{error}</div>
+      )}
+
+      {open && data && (
+        <div style={{ borderTop:'1px solid var(--border)', padding:'1.375rem' }}>
+          {/* Score + verdict */}
+          <div style={{ display:'flex', alignItems:'flex-start', gap:16, marginBottom:'1.5rem' }}>
+            <div style={{
+              fontSize:28, fontWeight:700, fontFamily:'var(--mono)', flexShrink:0,
+              color: data.overallScore >= 75 ? 'var(--green)' : data.overallScore >= 55 ? 'var(--amber)' : 'var(--red)',
+            }}>
+              {data.overallScore}<span style={{ fontSize:14, fontWeight:400, color:'var(--text-3)' }}>/100</span>
+            </div>
+            <p style={{ fontSize:14, color:'var(--text-2)', lineHeight:1.65, paddingTop:4 }}>{data.verdict}</p>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:'1.5rem' }}>
+            <div>
+              <div style={{ fontSize:11, fontWeight:600, color:'var(--green)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:10 }}>Strengths</div>
+              {(data.strengths || []).map((s, i) => (
+                <div key={i} style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.6, marginBottom:6 }}>+ {s}</div>
+              ))}
+            </div>
+            <div>
+              <div style={{ fontSize:11, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:10 }}>Skills to add</div>
+              {(data.missingSkills || []).map((s, i) => (
+                <div key={i} style={{ fontSize:13, color:'var(--text-2)', lineHeight:1.6, marginBottom:6 }}>→ {s}</div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize:11, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:12 }}>Priority fixes</div>
+            {(data.fixes || []).map((f, i) => (
+              <div key={i} style={{
+                padding:'10px 13px', borderRadius:8, marginBottom:8,
+                background:'var(--bg-subtle)', border:'1px solid var(--border)',
+                borderLeft:`3px solid ${priorityColor[f.priority] || 'var(--border-dark)'}`,
+              }}>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:3 }}>{f.issue}</div>
+                <div style={{ fontSize:12, color:'var(--text-2)', lineHeight:1.55 }}>{f.fix}</div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-
-      <div style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.6, marginBottom:'1.25rem',
-        padding:'10px 14px', background:'var(--bg-elevated)', borderRadius:8,
-        borderLeft:'3px solid var(--purple)' }}>
-        {review.verdict}
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:'1.25rem' }}>
-        <div>
-          <div style={{ fontSize:11, fontWeight:600, color:'var(--green)', textTransform:'uppercase',
-            letterSpacing:'0.06em', marginBottom:8 }}>✓ Strengths</div>
-          {(review.strengths || []).map((s, i) => (
-            <div key={i} style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.55, marginBottom:5 }}>
-              + {s}
-            </div>
-          ))}
-        </div>
-        <div>
-          <div style={{ fontSize:11, fontWeight:600, color:'var(--amber)', textTransform:'uppercase',
-            letterSpacing:'0.06em', marginBottom:8 }}>⚡ Skills to add</div>
-          {(review.missingSkills || []).map((s, i) => (
-            <div key={i} style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.55, marginBottom:5 }}>
-              → {s}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', textTransform:'uppercase',
-          letterSpacing:'0.06em', marginBottom:10 }}>Priority fixes</div>
-        {(review.fixes || []).map((f, i) => (
-          <div key={i} style={{
-            padding:'10px 12px', borderRadius:8, marginBottom:8,
-            background:'var(--bg-elevated)', border:'1px solid var(--border-subtle)',
-            borderLeft:`3px solid ${priorityColor[f.priority] || 'var(--border-default)'}`,
-          }}>
-            <div style={{ fontSize:12, fontWeight:600, marginBottom:3 }}>{f.issue}</div>
-            <div style={{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.55 }}>→ {f.fix}</div>
-          </div>
-        ))}
-      </div>
+      )}
     </div>
   );
 }
 
-/* ── Main Results Page ── */
-export default function ResultsPage({ apiKey, resumeText, onReset }) {
-  const [jobs, setJobs]           = useState([]);
-  const [review, setReview]       = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [loadingReview, setLoadingReview] = useState(false);
-  const [error, setError]         = useState('');
-  const [showReview, setShowReview]     = useState(false);
+/* ── Loading skeleton ── */
+function Skeleton() {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+      {[1,2,3].map(i => (
+        <div key={i} className="card" style={{ padding:'1.375rem', display:'flex', gap:14, alignItems:'center' }}>
+          <div style={{ width:48, height:48, borderRadius:'50%', background:'var(--bg-subtle)', flexShrink:0,
+            animation:'shimmer 1.5s ease infinite', animationDelay:`${i*0.15}s` }} />
+          <div style={{ flex:1 }}>
+            <div style={{ height:14, width:'55%', background:'var(--bg-subtle)', borderRadius:6, marginBottom:8,
+              animation:'shimmer 1.5s ease infinite' }} />
+            <div style={{ height:11, width:'35%', background:'var(--bg-subtle)', borderRadius:6,
+              animation:'shimmer 1.5s ease infinite', animationDelay:'0.2s' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Main ── */
+export default function ResultsPage({ resumeText, onReset }) {
+  const [jobs, setJobs]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState('');
 
   useEffect(() => {
-    (async () => {
-      try {
-        const results = await matchInternships(apiKey, resumeText);
-        setJobs(results);
-      } catch (e) {
-        setError(e.message || 'Something went wrong. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [apiKey, resumeText]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function handleResumeReview() {
-    if (review) { setShowReview(true); return; }
-    setLoadingReview(true);
-    try {
-      const r = await reviewResume(apiKey, resumeText);
-      setReview(r);
-      setShowReview(true);
-    } catch (e) {
-      setError('Resume review failed: ' + e.message);
-    } finally {
-      setLoadingReview(false);
-    }
-  }
-
-  if (loading) return (
-    <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center',
-      justifyContent:'center', gap:16, padding:'4rem 2rem', minHeight:'60vh' }}>
-      <div style={{ position:'relative', width:56, height:56 }}>
-        <div style={{ position:'absolute', inset:0, borderRadius:'50%',
-          border:'2px solid var(--purple-dim)', borderTop:'2px solid var(--purple)',
-          animation:'spin 0.8s linear infinite' }} />
-        <div style={{ position:'absolute', inset:8, borderRadius:'50%',
-          background:'var(--purple-dim)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <Zap size={14} color="var(--purple-light)" />
-        </div>
-      </div>
-      <div>
-        <div style={{ fontSize:16, fontWeight:600, marginBottom:6, textAlign:'center' }}>Analyzing your resume…</div>
-        <div style={{ fontSize:13, color:'var(--text-muted)', textAlign:'center' }}>Matching to thousands of real internships</div>
-      </div>
-    </div>
-  );
-
-  if (error) return (
-    <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center',
-      justifyContent:'center', padding:'4rem 2rem', textAlign:'center' }}>
-      <div style={{ fontSize:32, marginBottom:16 }}>⚠️</div>
-      <div style={{ fontSize:16, fontWeight:600, marginBottom:8 }}>Something went wrong</div>
-      <div style={{ fontSize:13, color:'var(--text-muted)', marginBottom:'1.5rem', maxWidth:400 }}>{error}</div>
-      <button className="btn-primary" onClick={onReset}>Start over</button>
-    </div>
-  );
+    matchInternships(resumeText)
+      .then(setJobs)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div style={{ maxWidth:720, margin:'0 auto', padding:'2rem', paddingBottom:'4rem' }}>
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'2rem' }}>
-        <div>
-          <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:4 }}>Your matches</div>
-          <h1 style={{ fontSize:26, fontWeight:700, letterSpacing:'-0.03em' }}>
-            {jobs.length} internships matched
-          </h1>
-        </div>
-        <div style={{ display:'flex', gap:8 }}>
-          <button className="btn-ghost" onClick={handleResumeReview} disabled={loadingReview}
-            style={{ fontSize:12, padding:'8px 14px' }}>
-            {loadingReview ? <><div className="spinner" />Reviewing…</> : '📋 Review resume'}
-          </button>
-          <button className="btn-ghost" onClick={onReset} style={{ fontSize:12, padding:'8px 14px' }}>
-            <ArrowLeft size={12} /> New search
-          </button>
-        </div>
-      </div>
+    <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
 
-      {/* Match cards */}
-      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-        {jobs.map((job, i) => (
-          <div key={i} className="fade-up" style={{ animationDelay: `${i * 0.06}s` }}>
-            <MatchCard job={job} apiKey={apiKey} resumeText={resumeText} />
+      {/* NAV */}
+      <nav style={{
+        padding:'1.125rem 2rem', borderBottom:'1px solid var(--border)',
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        position:'sticky', top:0, background:'rgba(250,250,248,0.9)',
+        backdropFilter:'blur(10px)', zIndex:100,
+      }}>
+        <span style={{ fontFamily:'var(--display)', fontSize:18, fontWeight:500, letterSpacing:'-0.02em' }}>
+          InternMatch
+        </span>
+        <button className="btn btn-outline" onClick={onReset} style={{ fontSize:13, padding:'8px 14px' }}>
+          <ArrowLeft size={13} /> New search
+        </button>
+      </nav>
+
+      {/* CONTENT */}
+      <main style={{ maxWidth:680, width:'100%', margin:'0 auto', padding:'2rem 1.5rem 4rem' }}>
+
+        {/* Header */}
+        {!loading && !error && (
+          <div className="fade-up" style={{ marginBottom:'1.75rem' }}>
+            <div style={{ fontSize:12, color:'var(--text-3)', fontFamily:'var(--mono)', marginBottom:6 }}>
+              {jobs.length} matches found
+            </div>
+            <h1 style={{
+              fontFamily:'var(--display)', fontSize:28, fontWeight:500,
+              letterSpacing:'-0.02em', lineHeight:1.2,
+            }}>
+              Your internship matches
+            </h1>
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Resume review */}
-      {showReview && review && <ResumeReview review={review} />}
+        {/* Loading */}
+        {loading && (
+          <div>
+            <div style={{ marginBottom:'1.75rem' }}>
+              <div style={{ fontSize:12, color:'var(--text-3)', fontFamily:'var(--mono)', marginBottom:6 }}>Analyzing resume…</div>
+              <div style={{ height:32, width:280, background:'var(--bg-subtle)', borderRadius:8, animation:'shimmer 1.5s ease infinite' }} />
+            </div>
+            <Skeleton />
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div style={{ textAlign:'center', padding:'4rem 1rem' }}>
+            <div style={{ fontSize:15, fontWeight:600, marginBottom:8 }}>Something went wrong</div>
+            <div style={{ fontSize:13, color:'var(--text-2)', marginBottom:'1.5rem', maxWidth:380, margin:'0 auto 1.5rem' }}>{error}</div>
+            <button className="btn btn-dark" onClick={onReset}>Try again</button>
+          </div>
+        )}
+
+        {/* Cards */}
+        {!loading && !error && (
+          <>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {jobs.map((job, i) => (
+                <MatchCard key={i} job={job} resumeText={resumeText} index={i} />
+              ))}
+            </div>
+            <ReviewPanel resumeText={resumeText} />
+          </>
+        )}
+      </main>
+
+      {/* FOOTER */}
+      <footer style={{
+        borderTop:'1px solid var(--border)', padding:'1.25rem 2rem',
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        fontSize:12, color:'var(--text-3)',
+      }}>
+        <span style={{ fontFamily:'var(--display)', fontWeight:500 }}>InternMatch</span>
+        <span>Powered by Google Gemini</span>
+      </footer>
     </div>
   );
 }
